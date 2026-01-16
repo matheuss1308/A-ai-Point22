@@ -1,1 +1,480 @@
-<!doctype html><html><body><h1>Açaí Point</h1></body></html>
+"use client";
+
+import React, { useMemo, useState } from "react";
+
+type Size = { id: string; label: string; price: number };
+type Item = { id: string; label: string; price: number };
+
+const WHATSAPP_NUMBER_DEFAULT = "5521979445819"; // seu número
+
+const SIZES: Size[] = [
+  { id: "300", label: "300ml", price: 10 },
+  { id: "400", label: "400ml", price: 12 },
+  { id: "500", label: "500ml", price: 13 }, // na imagem aparece R$13 no exemplo
+  { id: "700", label: "700ml", price: 18 },
+  { id: "1000", label: "1 litro", price: 24 },
+];
+
+const BATIDO: Item[] = [
+  { id: "Banana", label: "Banana", price: 0 },
+  { id: "Morango", label: "Morango", price: 0 },
+  { id: "Maracujá", label: "Maracujá", price: 0 },
+  { id: "Natural", label: "Natural", price: 0 },
+  { id: "Cupuaçu", label: "Cupuaçu", price: 0 },
+];
+
+const COBERTURA: Item[] = [
+  { id: "Chocolate", label: "Chocolate", price: 0 },
+  { id: "Morango", label: "Morango", price: 0 },
+  { id: "Uva", label: "Uva", price: 0 },
+  { id: "Caramelo", label: "Caramelo", price: 0 },
+  { id: "Kiwi", label: "Kiwi", price: 0 },
+  { id: "Graviola", label: "Graviola", price: 0 },
+  { id: "Tutti Frutti", label: "Tutti Frutti", price: 0 },
+];
+
+const COMPLEMENTOS: Item[] = [
+  { id: "Leite em pó", label: "Leite em pó", price: 0 },
+  { id: "Paçoca", label: "Paçoca", price: 0 },
+  { id: "Avelã", label: "Avelã", price: 0 },
+  { id: "Amendoim", label: "Amendoim", price: 0 },
+  { id: "Granola", label: "Granola", price: 0 },
+  { id: "Cookies", label: "Cookies", price: 0 },
+];
+
+const brl = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function makeOrderId() {
+  const s = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `AP-${s}`;
+}
+
+export default function StorePage({ params }: { params: { storeSlug: string } }) {
+  // no SaaS, aqui você carrega config do Firestore por storeSlug
+  const storeName = "Açaí Point";
+  const whatsappNumber = WHATSAPP_NUMBER_DEFAULT;
+
+  const [size, setSize] = useState("500");
+  const [batido, setBatido] = useState("Banana");
+  const [cobertura, setCobertura] = useState<string | null>(null);
+  const [comps, setComps] = useState<string[]>(["Chocolate"]); // exemplo da imagem
+  const [paid, setPaid] = useState(true); // exemplo “feito e pago”
+  const [receipt, setReceipt] = useState<string>("");
+
+  const total = useMemo(() => {
+    const s = SIZES.find((x) => x.id === size)?.price ?? 0;
+    // neste MVP, ingredientes não somam (igual ao print). Se quiser, soma aqui.
+    return s;
+  }, [size]);
+
+  const summary = useMemo(() => {
+    const sizeLabel = SIZES.find((x) => x.id === size)?.label ?? "—";
+    return {
+      sizeLabel,
+      batido,
+      cobertura: cobertura ?? "—",
+      comps,
+      total,
+    };
+  }, [size, batido, cobertura, comps, total]);
+
+  function buildReceiptText() {
+    const id = makeOrderId();
+    const stamp = new Date().toLocaleString("pt-BR");
+    const compList = summary.comps.length ? summary.comps.join(", ") : "—";
+
+    return [
+      `========== ${storeName.toUpperCase()} ==========` ,
+      `COMPROVANTE: ${id}`,
+      `Data/Hora:   ${stamp}`,
+      `--------------------------------`,
+      `Batido de ${summary.sizeLabel}`,
+      `• ${summary.batido}`,
+      ...(summary.cobertura !== "—" ? [`• Cobertura: ${summary.cobertura}`] : []),
+      ...(summary.comps.length ? [`• Complementos: ${compList}`] : []),
+      `--------------------------------`,
+      `Status: ${paid ? "PAGO" : "PENDENTE"}`,
+      `Total:  ${brl(summary.total)}`,
+      `================================`,
+      `Quero fazer um pedido.`,
+    ].join("\n");
+  }
+
+  function openWhats() {
+    const text = buildReceiptText();
+    setReceipt(text);
+    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+  }
+
+  function toggleComp(v: string) {
+    setComps((prev) =>
+      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="top">
+        <div className="titleBlock">
+          <div className="miniCup" aria-hidden="true" />
+          <div>
+            <div className="headline">
+              <span className="mono">MONTE</span>
+              <span className="mono">O SEU</span>
+              <span className="acai">AÇAÍ</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rightTop">
+          <div className="brandCircle">
+            <div className="brandInner">
+              <div className="brandName">AÇAÍ</div>
+              <div className="brandPoint">Point</div>
+            </div>
+          </div>
+
+          <button className="whatsBtn" onClick={openWhats}>
+            Fazer pedido via WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <div className="grid">
+        {/* ESQUERDA */}
+        <div className="left">
+          <div className="section">
+            <div className="sectionTitle">Escolha o tamanho</div>
+            <div className="sizes">
+              {SIZES.map((s) => (
+                <label key={s.id} className="opt">
+                  <input
+                    type="radio"
+                    name="size"
+                    checked={size === s.id}
+                    onChange={() => setSize(s.id)}
+                  />
+                  <span>{s.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="section">
+            <div className="sectionTitle">Escolha os ingredientes</div>
+
+            <div className="cols">
+              <div className="col">
+                <div className="colTitle">Batido com</div>
+                {BATIDO.map((i) => (
+                  <label key={i.id} className="opt">
+                    <input
+                      type="radio"
+                      name="batido"
+                      checked={batido === i.id}
+                      onChange={() => setBatido(i.id)}
+                    />
+                    <span>{i.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="col">
+                <div className="colTitle">Cobertura/Caidas</div>
+
+                <label className="opt">
+                  <input
+                    type="radio"
+                    name="cobertura"
+                    checked={cobertura === null}
+                    onChange={() => setCobertura(null)}
+                  />
+                  <span>Nenhuma</span>
+                </label>
+
+                {COBERTURA.map((i) => (
+                  <label key={i.id} className="opt">
+                    <input
+                      type="radio"
+                      name="cobertura"
+                      checked={cobertura === i.id}
+                      onChange={() => setCobertura(i.id)}
+                    />
+                    <span>{i.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="col">
+                <div className="colTitle">Complementos</div>
+                {COMPLEMENTOS.map((i) => (
+                  <label key={i.id} className="opt">
+                    <input
+                      type="checkbox"
+                      checked={comps.includes(i.id)}
+                      onChange={() => toggleComp(i.id)}
+                    />
+                    <span>{i.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* DIREITA */}
+        <div className="summaryCard">
+          <div className="summaryTitle">Resumo</div>
+          <div className="summaryLine">
+            <strong>Batido de {summary.sizeLabel}</strong>
+          </div>
+          <div className="bullets">
+            <div className="dot">●</div><div>{summary.batido}</div>
+            {summary.comps.map((c) => (
+              <React.Fragment key={c}>
+                <div className="dot">●</div><div>{c}</div>
+              </React.Fragment>
+            ))}
+          </div>
+
+          <div className="totalRow">
+            <span>Total</span>
+            <strong>{brl(summary.total)}</strong>
+          </div>
+
+          <button className="addBtn" onClick={() => setReceipt(buildReceiptText())}>
+            Adicionar ao carrinho
+          </button>
+
+          <div className="chatBox">
+            <div className="chatTop">
+              <div className="chatAvatar" aria-hidden="true" />
+              <div className="chatName">{storeName}</div>
+              <button className="chatBtn" onClick={openWhats}>Quero fazer um pedido.</button>
+            </div>
+            <div className="chatMsg">
+              Olá! Sou o assistente do {storeName}, Quer ver nosso cardápio?
+            </div>
+          </div>
+
+          <div className="paidRow">
+            <label className="paidCheck">
+              <input type="checkbox" checked={paid} onChange={(e)=>setPaid(e.target.checked)} />
+              <span>Pedido pago</span>
+            </label>
+            <button className="whatsMini" onClick={openWhats}>Enviar no WhatsApp</button>
+          </div>
+
+          {receipt && <pre className="receipt">{receipt}</pre>}
+        </div>
+      </div>
+
+      <style jsx>{`
+        .page{
+          min-height:100vh;
+          padding:22px 26px 38px;
+          color:#fff;
+          background: radial-gradient(1200px 700px at 25% 15%, #5b0e88 0%, #2a0040 55%, #160022 100%);
+          font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        }
+        .top{
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:18px;
+          margin-bottom:18px;
+        }
+        .titleBlock{display:flex;align-items:center;gap:16px}
+        .miniCup{
+          width:68px;height:68px;border-radius:18px;
+          background: rgba(255,255,255,.08);
+          border:1px solid rgba(255,255,255,.14);
+          box-shadow:0 18px 50px rgba(0,0,0,.25);
+        }
+        .headline{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+        .mono{
+          font-weight:900;
+          font-size:42px;
+          letter-spacing:1px;
+          text-transform:uppercase;
+          text-shadow:0 6px 18px rgba(0,0,0,.35);
+        }
+        .acai{
+          font-weight:950;
+          font-size:62px;
+          color:#f3c623;
+          letter-spacing:2px;
+          text-shadow:0 10px 22px rgba(0,0,0,.35);
+        }
+
+        .rightTop{display:flex;align-items:center;gap:18px}
+        .brandCircle{
+          width:104px;height:104px;border-radius:999px;
+          border:4px solid rgba(255,255,255,.95);
+          position:relative;
+          background: rgba(0,0,0,.15);
+        }
+        .brandCircle:before{
+          content:"";
+          position:absolute;inset:-9px;
+          border-radius:999px;
+          border:6px solid #f3c623;
+          opacity:.9;
+          transform:rotate(-8deg);
+          pointer-events:none;
+        }
+        .brandInner{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+        .brandName{font-weight:950;font-size:30px;line-height:1}
+        .brandPoint{font-weight:900;color:#f3c623;margin-top:-6px}
+
+        .whatsBtn{
+          border:0;
+          background: linear-gradient(180deg,#1bb154,#118a42);
+          color:#fff;
+          font-weight:900;
+          padding:14px 18px;
+          border-radius:14px;
+          cursor:pointer;
+          box-shadow:0 16px 35px rgba(0,0,0,.25);
+        }
+
+        .grid{
+          display:grid;
+          grid-template-columns: 1.12fr .88fr;
+          gap:22px;
+          align-items:start;
+        }
+        .left{padding-top:4px}
+        .section{margin-bottom:18px}
+        .sectionTitle{
+          font-size:30px;
+          font-weight:800;
+          margin:12px 0 14px;
+        }
+
+        .sizes{display:flex;gap:22px;flex-wrap:wrap}
+        .opt{
+          display:flex;align-items:center;gap:10px;
+          font-size:24px;
+          color:#fff;
+          opacity:.95;
+        }
+        input{transform:scale(1.2)}
+
+        .cols{
+          display:grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap:34px;
+          margin-top:10px;
+        }
+        .colTitle{
+          font-size:28px;
+          font-weight:800;
+          margin:8px 0 12px;
+        }
+        .col{display:grid;gap:14px}
+
+        .summaryCard{
+          background:#fff;
+          color:#17111f;
+          border-radius:18px;
+          padding:18px 18px 14px;
+          box-shadow:0 24px 60px rgba(0,0,0,.35);
+        }
+        .summaryTitle{font-size:34px;font-weight:900;margin-bottom:12px}
+        .summaryLine{font-size:22px;margin-bottom:10px}
+        .bullets{
+          display:grid;
+          grid-template-columns: 18px 1fr;
+          gap:10px 10px;
+          font-size:22px;
+          margin-bottom:14px;
+        }
+        .dot{color:#3a0a5a}
+        .totalRow{
+          display:flex;justify-content:space-between;align-items:center;
+          font-size:24px;font-weight:900;
+          margin:10px 0 14px;
+        }
+        .addBtn{
+          width:100%;
+          border:0;
+          border-radius:14px;
+          padding:14px 16px;
+          font-size:22px;
+          font-weight:900;
+          color:#fff;
+          background: linear-gradient(180deg,#3d0b5f,#2a003f);
+          cursor:pointer;
+        }
+
+        .chatBox{
+          margin-top:14px;
+          border-radius:16px;
+          border:1px solid rgba(0,0,0,.12);
+          padding:12px;
+        }
+        .chatTop{display:flex;align-items:center;gap:10px}
+        .chatAvatar{
+          width:44px;height:44px;border-radius:12px;
+          background:#eee;
+        }
+        .chatName{font-weight:900;font-size:20px;flex:1}
+        .chatBtn{
+          border:0;border-radius:14px;
+          padding:10px 14px;
+          font-weight:900;
+          background:#3d0b5f;
+          color:#fff;
+          cursor:pointer;
+          white-space:nowrap;
+        }
+        .chatMsg{
+          margin-top:10px;
+          background:#f5f0f8;
+          border-radius:14px;
+          padding:12px;
+          font-size:18px;
+          color:#2a1d34;
+        }
+
+        .paidRow{
+          display:flex;gap:10px;align-items:center;
+          margin-top:12px;
+        }
+        .paidCheck{display:flex;gap:10px;align-items:center;font-weight:900}
+        .whatsMini{
+          margin-left:auto;
+          border:0;border-radius:14px;
+          padding:10px 12px;
+          font-weight:900;
+          background: linear-gradient(180deg,#1bb154,#118a42);
+          color:#fff;
+          cursor:pointer;
+        }
+
+        .receipt{
+          margin-top:12px;
+          background:#f6f2fa;
+          border:1px solid rgba(0,0,0,.10);
+          border-radius:14px;
+          padding:12px;
+          font-size:12px;
+          white-space:pre-wrap;
+        }
+
+        @media (max-width: 980px){
+          .grid{grid-template-columns:1fr}
+          .cols{grid-template-columns:1fr}
+          .mono{font-size:34px}
+          .acai{font-size:54px}
+          .opt{font-size:20px}
+          .sectionTitle{font-size:26px}
+          .colTitle{font-size:24px}
+        }
+      `}</style>
+    </div>
+  );
+}
